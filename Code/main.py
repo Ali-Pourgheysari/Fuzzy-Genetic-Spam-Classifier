@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import mutual_info_classif
+from sklearn.model_selection import train_test_split
 
 class data_preprocessing:
 
@@ -89,19 +90,55 @@ class data_preprocessing:
 
 class Fuzzy_functions:
 
-    def sigmoid(x, s, m):
+    def fuzzification(self, rules, X_train): # 3, 4
+        y_hat = []
+        g_0 = []
+        g_1 = []
+        for rule in rules:
+            rule_fitness = []
+
+            for row in X_train:
+                rule_fitness.append(self.calculate_matching(rule.if_term, row))
+
+            avg = sum(rule_fitness)/len(rule_fitness)
+            if rule.class_label == 0:
+                g_0.append(avg)
+            else:
+                g_1.append(avg)
+                
+        y_hat.append(0 if sum(g_0) > sum(g_1) else 1)
+        return y_hat
+
+    ###################### it always calculate from the first [x1, x2] but we want [x3, x5] #############################
+    def calculate_matching(self, if_term, row): # 2
+        matching = 1
+
+        for i, term in enumerate(if_term): # [[low, sigmoid, s, m], [high, triangular, s, m], ...]
+            if term[1] == 'sigmoid':
+                matching *= self.sigmoid(row[i], term[3], term[2])
+            elif term[1] == 'gaussian':
+                matching *= self.gaussian(row[i], term[3], term[2])
+            elif term[1] == 'triangular':
+                matching *= self.triangular(row[i], term[3], term[2])
+            elif term[1] == 'trapezius':
+                matching *= self.trapezius(row[i], term[3], term[2])
+    
+        return matching
+        
+
+    def sigmoid(self, x, s, m):
         return 1 / (1 + np.exp(-(x-m)/s))
         
 
-    def gaussian(x, s, m):
+    def gaussian(self, x, s, m):
         return np.exp((-1/2)*((x-m)/s)**2)
 
 
-    def trapezius(x, s, m):
+    def trapezius(self, x, s, m):
         return max(min((x-m)/s, 1), 0)
 
 
-    def triangular(x, s, m):
+    def triangular(self, x, s, m):
         return max(min((x-m)/s, (m-x)/s), 0)
 
     
@@ -113,15 +150,18 @@ class Rule:
     
     def generate_if_term(self, maximum_value, minimum_value):
         rule = []
-        for j in range(np.random.randint(1, 5)):
+        if_term_len = np.random.randint(1, 5)
+        membership_func_values = ['low', 'fairly low', 'medium', 'fairly high', 'high']
+        for j in range():
             term = []
             s = 0
-            
-            term.append(np.random.choice(['low', 'fairly low', 'medium', 'fairly high', 'high'])) # term
-            term.append(np.random.choice(['sigmoid', 'gaussian', 'triangular', 'trapezius'])) # membership function
-            term.append(np.random.randint(minimum_value, maximum_value)) # m      ########## we must calculate the min and max of each feature
+            # <----(-93)------------------------------------(18)---->
+            term.append(np.random.choice(membership_func_values)) # term
+            membership_func_values.remove(term[0])
+            term.append(np.random.choice(['sigmoid', 'gaussian', 'triangular', 'trapezius'])) # membership function                 
+            term.append(np.random.uniform(minimum_value, maximum_value)) # m      ########## we must calculate the min and max of each feature
             while s == 0:
-                s = np.random.randint(1, 100) if term[1] == 'triangular' else np.random.randint(-100, 100) # s
+                s = np.random.uniform(1, abs(maximum_value - minimum_value)) if term[1] == 'triangular' else np.random.randint(-100, 100) # s
             term.append(s)
         
             rule.append(term)
@@ -130,20 +170,25 @@ class Rule:
     def generate_class_label(self):
         return np.random.randint(0, 1)
 
+
 class genetic_algorithm:
 
-    def __init__(self, records_dim_reduced, population=50):
-    
-        flattened_arr = np.concatenate(records_dim_reduced)
-        maximum_value = np.amax(flattened_arr)
-        minimum_value = np.amin(flattened_arr)
+    def __init__(self, X_train, y_train, population=50):
+        self.max_min_for_initial_generation(X_train)
+        self.algorithm()
 
+    def max_min_for_initial_generation(self, X_train):
+        flattened_arr = np.concatenate(X_train)
+        self.maximum_value = np.amax(flattened_arr)
+        self.minimum_value = np.amin(flattened_arr)
+
+    def algorithm(self, population):
         parent_pool = []
         for i in range(population):
-            parent_pool.append(Rule(maximum_value, minimum_value))
+            parent_pool.append(Rule(self.maximum_value, self.minimum_value))
         
+        fuzzy = Fuzzy_functions()
         self.fitness(parent_pool)
-
 
     def cross_over():
         pass
@@ -158,7 +203,8 @@ class genetic_algorithm:
 
 def main():
     data = data_preprocessing()
-    genetic_algorithm(data.records_dim_reduced, 50)
+    X_train, X_test, y_train, y_test = train_test_split(data.records_dim_reduced, data.labels, test_size=0.33)
+    genetic_algorithm(X_train, y_train, 50)
 
 if __name__ == '__main__':
     main()
