@@ -130,31 +130,35 @@ class Rule:
     def generate_class_label(self):
         return np.random.randint(0, 1)
 
+class genetic_algorithm:
 
-
-def genetic_algorithm(records_dim_reduced, population=50):
+    def __init__(self, records_dim_reduced, population=50):
     
-    flattened_arr = np.concatenate(records_dim_reduced)
-    maximum_value = np.amax(flattened_arr)
-    minimum_value = np.amin(flattened_arr)
+        flattened_arr = np.concatenate(records_dim_reduced)
+        maximum_value = np.amax(flattened_arr)
+        minimum_value = np.amin(flattened_arr)
 
-    parent_pool = []
-    for i in range(population):
-        parent_pool.append(Rule(maximum_value, minimum_value))
-    
-    fitness(parent_pool)
+        parent_pool = []
+        for i in range(population):
+            parent_pool.append(Rule(maximum_value, minimum_value))
+        
+        self.fitness(parent_pool)
 
 
-def cross_over():
-    pass
-def mutation():
-    pass
+    def cross_over():
+        pass
+    def mutation():
+        pass
 
-def fitness(parent_pool):
-    for item in parent_pool:
-        if item.fitness is not None:
-            pass
+    def fitness(parent_pool):
+        for item in parent_pool:
+            if item.fitness is not None:
+                pass
 
-data = data_preprocessing()
 
-genetic_algorithm(data.records_dim_reduced, 50)
+def main():
+    data = data_preprocessing()
+    genetic_algorithm(data.records_dim_reduced, 50)
+
+if __name__ == '__main__':
+    main()
