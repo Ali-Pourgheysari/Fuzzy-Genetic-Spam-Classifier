@@ -5,6 +5,7 @@ import numpy as np
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import mutual_info_classif
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
 
 class data_preprocessing:
 
@@ -172,7 +173,7 @@ class Rule:
         # m of each membership function must represents the name of the membership function
         m = minimum_value
         i = 0
-        sorted_membership_list = sorted(np.array(rule)[:, 0], key=lambda x: ['low', 'fairly low', 'medium', 'fairly high', 'high'].index(x))
+        sorted_membership_list = sorted(np.array(rule)[:, 1], key=lambda x: ['low', 'fairly low', 'medium', 'fairly high', 'high'].index(x))
         for i in range(if_term_len):
             for term in rule:
                 if sorted_membership_list[i] == term[1]:
@@ -190,7 +191,7 @@ class genetic_algorithm:
 
     def __init__(self, X_train, y_train, population_len=50, generation=100, mutation_rate=0.1, crossover_rate=0.9):
         self.max_min_for_initial_generation(X_train)
-        self.algorithm(population_len, X_train, y_train, generation, mutation_rate, crossover_rate)
+        self.finess_score = self.algorithm(population_len, X_train, y_train, generation, mutation_rate, crossover_rate)
 
 
     def max_min_for_initial_generation(self, X_train):
@@ -225,6 +226,9 @@ class genetic_algorithm:
             for rule in parent_pool:
                 self.fitness(rule, X_train, y_train)
 
+            parent_pool = self.selection(parent_pool, population_len)
+        
+        return fitness_score
 
     def selection(self, parent_pool, population_len):
         parent_pool = sorted(parent_pool, key=lambda x: x.fitness, reverse=True)
@@ -235,13 +239,16 @@ class genetic_algorithm:
     def crossover(self, parent_pool, population_len, crossover_rate):
         offspring = []
         parents_number = population_len//2 if population_len % 2 == 0 else population_len//2 - 1
-        for i in range(parents_number):
+        for i in range(parents_number - 1):
             if np.random.uniform(0, 1) < crossover_rate:
                 first_child = Rule(is_offspring=True)
                 second_child = Rule(is_offspring=True)
                 first_child.if_term = parent_pool[i].if_term[:int(len(parent_pool[i].if_term)/2)] + parent_pool[i+1].if_term[int(len(parent_pool[i+1].if_term)/2):]
                 second_child.if_term = parent_pool[i+1].if_term[:int(len(parent_pool[i+1].if_term)/2)] + parent_pool[i].if_term[int(len(parent_pool[i].if_term)/2):]
-                first_child.class_label, second_child.class_label = parent_pool[i].class_label, parent_pool[i+1].class_label if np.random.uniform(0, 1) < 0.5 else parent_pool[i+1].class_label, parent_pool[i].class_label
+                if np.random.uniform(0, 1) < 0.5:
+                    first_child.class_label, second_child.class_label = parent_pool[i].class_label, parent_pool[i+1].class_label
+                else:
+                    first_child.class_label, second_child.class_label = parent_pool[i+1].class_label, parent_pool[i].class_label
                 offspring.append(first_child)
                 offspring.append(second_child) 
 
@@ -255,9 +262,33 @@ class genetic_algorithm:
                 if np.random.uniform(0, 1) < 0.5:
                     offspring[i].if_term = self.mutation_if_term(offspring[i].if_term)
                 else:
-                    offspring[i].class_label = self.mutation_class_label(offspring[i].class_label)
+                    offspring[i].class_label = 0 if offspring[i].class_label == 1 else 1
 
         return offspring
+
+
+    def mutation_if_term(self, if_term):
+        x_representive = [1, 2, 3, 4, 5]
+        term_func_values = ['low', 'fairly low', 'medium', 'fairly high', 'high']
+        used_x_representive = []
+        used_term_func_values = []
+        for term in if_term:
+            used_x_representive.append(term[0])
+            used_term_func_values.append(term[1])
+
+        difference_x_representive = list(set(x_representive) - set(used_x_representive))
+        difference_term_func_values = list(set(term_func_values) - set(used_term_func_values))
+        
+        if_term[np.random.randint(0, len(if_term))][0] = np.random.choice(difference_x_representive)
+        if_term[np.random.randint(0, len(if_term))][1] = np.random.choice(difference_term_func_values)
+        random_number = np.random.randint(0, len(if_term))
+        if_term[random_number][2] = np.random.choice(['sigmoid', 'gaussian', 'triangular', 'trapezius'])
+        s = 0
+        while s == 0:
+            s = np.random.uniform(1, abs(self.maximum_value - self.minimum_value)) if if_term[random_number][2] == 'triangular' else np.random.randint(-100, 100) # s
+        if_term[np.random.randint(0, len(if_term))][3] = np.random.uniform(self.minimum_value, self.maximum_value)
+        
+        return if_term        
 
 
     def fitness(self, rule, X_train, y_train):
@@ -279,13 +310,13 @@ class genetic_algorithm:
             rule.fitness = (f_c - f_neg)/(f_c + f_neg)
                 
                 
-
-
 def main():
     data = data_preprocessing()
     X_train, X_test, y_train, y_test = train_test_split(data.records_dim_reduced, data.labels, test_size=0.33)
-    genetic_algorithm(X_train, y_train, population_len=50, generation=100, mutation_rate=0.1, crossover_rate=0.9)
-
+    ga = genetic_algorithm(X_train, y_train, population_len=50, generation=100, mutation_rate=0.1, crossover_rate=0.9)
+    fitness_score = ga.fitness_score
+    plt.plot(fitness_score)
+    plt.show()
 
 if __name__ == '__main__':
     main()
