@@ -151,19 +151,32 @@ class Rule:
     def generate_if_term(self, maximum_value, minimum_value):
         rule = []
         membership_func_values = ['low', 'fairly low', 'medium', 'fairly high', 'high']
-        for j in range(np.random.randint(1, 5)):
+        if_term_len = np.random.randint(1, 5)
+        for j in range(if_term_len):
             term = []
             s = 0
             # <----(-93)------------------------------------(18)---->
             term.append(np.random.choice(membership_func_values)) # term
             membership_func_values.remove(term[0])
             term.append(np.random.choice(['sigmoid', 'gaussian', 'triangular', 'trapezius'])) # membership function                 
-            term.append(np.random.uniform(minimum_value, maximum_value)) # m      ########## we must calculate the min and max of each feature
+            term.append(0) # m      ########## we must calculate the min and max of each feature
             while s == 0:
                 s = np.random.uniform(1, abs(maximum_value - minimum_value)) if term[1] == 'triangular' else np.random.randint(-100, 100) # s
             term.append(s)
         
             rule.append(term)
+        
+        # m of each membership function must represents the name of the membership function
+        m = minimum_value
+        i = 0
+        sorted_membership_list = sorted(np.array(rule)[:, 0], key=lambda x: ['low', 'fairly low', 'medium', 'fairly high', 'high'].index(x))
+        for i in range(if_term_len):
+            for term in rule:
+                if sorted_membership_list[i] == term[0]:
+                    m = np.random.uniform(m, maximum_value)
+                    term[2] = m
+                    break
+
         return rule
     
     def generate_class_label(self):
@@ -172,18 +185,18 @@ class Rule:
 
 class genetic_algorithm:
 
-    def __init__(self, X_train, y_train, population=50):
+    def __init__(self, X_train, y_train, population_len=50):
         self.max_min_for_initial_generation(X_train)
-        self.algorithm()
+        self.algorithm(population_len)
 
     def max_min_for_initial_generation(self, X_train):
         flattened_arr = np.concatenate(X_train)
         self.maximum_value = np.amax(flattened_arr)
         self.minimum_value = np.amin(flattened_arr)
 
-    def algorithm(self, population):
+    def algorithm(self, population_len):
         parent_pool = []
-        for i in range(population):
+        for i in range(population_len):
             parent_pool.append(Rule(self.maximum_value, self.minimum_value))
         
         fuzzy = Fuzzy_functions()
