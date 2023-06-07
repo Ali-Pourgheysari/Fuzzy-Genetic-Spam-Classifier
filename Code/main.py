@@ -90,38 +90,37 @@ class data_preprocessing:
 
 class Fuzzy_functions:
 
-    def fuzzification(self, rules, X_train): # 3, 4
-        y_hat = []
-        g_0 = []
-        g_1 = []
-        for rule in rules:
-            rule_fitness = []
+    # def test(self, rules, X_train): # 3, 4
+    #     y_hat = []
+    #     g_0 = []
+    #     g_1 = []
+    #     for rule in rules:
+    #         rule_fitness = []
 
-            for row in X_train:
-                rule_fitness.append(self.calculate_matching(rule.if_term, row))
+    #         for row in X_train:
+    #             rule_fitness.append(self.calculate_matching(rule.if_term, row))
 
-            avg = sum(rule_fitness)/len(rule_fitness)
-            if rule.class_label == 0:
-                g_0.append(avg)
-            else:
-                g_1.append(avg)
+    #         avg = sum(rule_fitness)/len(rule_fitness)
+    #         if rule.class_label == 0:
+    #             g_0.append(avg)
+    #         else:
+    #             g_1.append(avg)
                 
-        y_hat.append(0 if sum(g_0) > sum(g_1) else 1)
-        return y_hat
+    #     y_hat.append(0 if sum(g_0) > sum(g_1) else 1)
+    #     return y_hat
 
-    ###################### it always calculate from the first [x1, x2] but we want [x3, x5] #############################
     def calculate_matching(self, if_term, row): # 2
         matching = 1
 
-        for i, term in enumerate(if_term): # [[low, sigmoid, s, m], [high, triangular, s, m], ...]
+        for term in if_term: # [[low, sigmoid, s, m, 1], [high, triangular, s, m, 5], ...]
             if term[1] == 'sigmoid':
-                matching *= self.sigmoid(row[i], term[3], term[2])
+                matching *= self.sigmoid(row[term[0]], term[4], term[3])
             elif term[1] == 'gaussian':
-                matching *= self.gaussian(row[i], term[3], term[2])
+                matching *= self.gaussian(row[term[0]], term[4], term[3])
             elif term[1] == 'triangular':
-                matching *= self.triangular(row[i], term[3], term[2])
+                matching *= self.triangular(row[term[0]], term[4], term[3])
             elif term[1] == 'trapezius':
-                matching *= self.trapezius(row[i], term[3], term[2])
+                matching *= self.trapezius(row[term[0]], term[4], term[3])
     
         return matching
         
@@ -150,20 +149,23 @@ class Rule:
     
     def generate_if_term(self, maximum_value, minimum_value):
         rule = []
-        membership_func_values = ['low', 'fairly low', 'medium', 'fairly high', 'high']
+        term_func_values = ['low', 'fairly low', 'medium', 'fairly high', 'high']
+        x_representive = [1, 2, 3, 4, 5]
         if_term_len = np.random.randint(1, 5)
         for j in range(if_term_len):
             term = []
             s = 0
-            # <----(-93)------------------------------------(18)---->
-            term.append(np.random.choice(membership_func_values)) # term
-            membership_func_values.remove(term[0])
+            # representive of Xi
+            term.append(np.random.choice(x_representive))
+            x_representive.remove(term[0])
+            term.append(np.random.choice(term_func_values)) # term
+            term_func_values.remove(term[1])
             term.append(np.random.choice(['sigmoid', 'gaussian', 'triangular', 'trapezius'])) # membership function                 
-            term.append(0) # m      ########## we must calculate the min and max of each feature
+            term.append(0) # m
             while s == 0:
-                s = np.random.uniform(1, abs(maximum_value - minimum_value)) if term[1] == 'triangular' else np.random.randint(-100, 100) # s
+                s = np.random.uniform(1, abs(maximum_value - minimum_value)) if term[2] == 'triangular' else np.random.randint(-100, 100) # s
             term.append(s)
-        
+
             rule.append(term)
         
         # m of each membership function must represents the name of the membership function
@@ -172,9 +174,9 @@ class Rule:
         sorted_membership_list = sorted(np.array(rule)[:, 0], key=lambda x: ['low', 'fairly low', 'medium', 'fairly high', 'high'].index(x))
         for i in range(if_term_len):
             for term in rule:
-                if sorted_membership_list[i] == term[0]:
+                if sorted_membership_list[i] == term[1]:
                     m = np.random.uniform(m, maximum_value)
-                    term[2] = m
+                    term[3] = m
                     break
 
         return rule
@@ -187,30 +189,45 @@ class genetic_algorithm:
 
     def __init__(self, X_train, y_train, population_len=50):
         self.max_min_for_initial_generation(X_train)
-        self.algorithm(population_len)
+        self.algorithm(population_len, X_train, y_train)
 
     def max_min_for_initial_generation(self, X_train):
         flattened_arr = np.concatenate(X_train)
         self.maximum_value = np.amax(flattened_arr)
         self.minimum_value = np.amin(flattened_arr)
 
-    def algorithm(self, population_len):
+    def algorithm(self, population_len, X_train, y_train):
         parent_pool = []
         for i in range(population_len):
             parent_pool.append(Rule(self.maximum_value, self.minimum_value))
-        
-        fuzzy = Fuzzy_functions()
-        self.fitness(parent_pool)
+
+        self.fitness(parent_pool, X_train, y_train)
 
     def cross_over():
         pass
     def mutation():
         pass
 
-    def fitness(parent_pool):
-        for item in parent_pool:
-            if item.fitness is not None:
-                pass
+    def fitness(parent_pool, X_train, y_train):
+        fuzzy_functions = Fuzzy_functions()
+
+        f_c = []
+        f_neg = []
+        for rule in parent_pool:
+            if rule.fitness is None:
+                X_with_same_class_label = [x for x, y in zip(X_train, y_train) if y == rule.class_label]
+                X_with_different_class_label = [x for x, y in zip(X_train, y_train) if y != rule.class_label]
+                
+                for row in  X_with_same_class_label:
+                    f_c.append(fuzzy_functions.calculate_matching(rule.if_term, row))
+                f_c = sum(f_c)
+                for row in  X_with_different_class_label:
+                    f_neg.append(fuzzy_functions.calculate_matching(rule.if_term, row))
+                f_neg = sum(f_neg)/(len(X_with_different_class_label) - 1)
+
+                rule.fitness = (f_c - f_neg)/(f_c + f_neg)
+                
+                
 
 
 def main():
