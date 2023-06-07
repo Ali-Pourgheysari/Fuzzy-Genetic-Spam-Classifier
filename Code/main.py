@@ -114,13 +114,13 @@ class Fuzzy_functions:
 
         for term in if_term: # [[low, sigmoid, s, m, 1], [high, triangular, s, m, 5], ...]
             if term[1] == 'sigmoid':
-                matching *= self.sigmoid(row[term[0]], term[4], term[3])
+                matching *= self.sigmoid(row[term[0]] - 1, term[4], term[3])
             elif term[1] == 'gaussian':
-                matching *= self.gaussian(row[term[0]], term[4], term[3])
+                matching *= self.gaussian(row[term[0]] - 1, term[4], term[3])
             elif term[1] == 'triangular':
-                matching *= self.triangular(row[term[0]], term[4], term[3])
+                matching *= self.triangular(row[term[0]] - 1, term[4], term[3])
             elif term[1] == 'trapezius':
-                matching *= self.trapezius(row[term[0]], term[4], term[3])
+                matching *= self.trapezius(row[term[0]] - 1, term[4], term[3])
     
         return matching
         
@@ -142,9 +142,10 @@ class Fuzzy_functions:
 
     
 class Rule:
-    def __init__(self, maximum_value, minimum_value) -> None:
-        self.if_term = self.generate_if_term(maximum_value, minimum_value)
-        self.class_label = self.generate_class_label()
+    def __init__(self, maximum_value=None, minimum_value=None, is_offspring=False) -> None:
+        if not is_offspring:
+            self.if_term = self.generate_if_term(maximum_value, minimum_value)
+            self.class_label = self.generate_class_label()
         self.fitness = None
     
     def generate_if_term(self, maximum_value, minimum_value):
@@ -187,45 +188,95 @@ class Rule:
 
 class genetic_algorithm:
 
-    def __init__(self, X_train, y_train, population_len=50):
+    def __init__(self, X_train, y_train, population_len=50, generation=100, mutation_rate=0.1, crossover_rate=0.9):
         self.max_min_for_initial_generation(X_train)
-        self.algorithm(population_len, X_train, y_train)
+        self.algorithm(population_len, X_train, y_train, generation, mutation_rate, crossover_rate)
+
 
     def max_min_for_initial_generation(self, X_train):
         flattened_arr = np.concatenate(X_train)
         self.maximum_value = np.amax(flattened_arr)
         self.minimum_value = np.amin(flattened_arr)
 
-    def algorithm(self, population_len, X_train, y_train):
+
+    def algorithm(self, population_len, X_train, y_train, generation, mutation_rate, crossover_rate):
         parent_pool = []
         for i in range(population_len):
             parent_pool.append(Rule(self.maximum_value, self.minimum_value))
 
-        self.fitness(parent_pool, X_train, y_train)
-
-    def cross_over():
-        pass
-    def mutation():
-        pass
-
-    def fitness(parent_pool, X_train, y_train):
-        fuzzy_functions = Fuzzy_functions()
-
-        f_c = []
-        f_neg = []
         for rule in parent_pool:
-            if rule.fitness is None:
-                X_with_same_class_label = [x for x, y in zip(X_train, y_train) if y == rule.class_label]
-                X_with_different_class_label = [x for x, y in zip(X_train, y_train) if y != rule.class_label]
-                
-                for row in  X_with_same_class_label:
-                    f_c.append(fuzzy_functions.calculate_matching(rule.if_term, row))
-                f_c = sum(f_c)
-                for row in  X_with_different_class_label:
-                    f_neg.append(fuzzy_functions.calculate_matching(rule.if_term, row))
-                f_neg = sum(f_neg)/(len(X_with_different_class_label) - 1)
+            self.fitness(rule, X_train, y_train)
 
-                rule.fitness = (f_c - f_neg)/(f_c + f_neg)
+        # fitness score for plot
+        fitness_score = [0 for _ in range(generation)]
+
+        for i in range(generation):
+            fitness_score[i] = np.average([rule.fitness for rule in parent_pool])
+            print(f'generation {i} average fitness: {fitness_score[i]}')
+
+            parent_pool = self.selection(parent_pool, population_len)
+
+            offspring = self.crossover(parent_pool, population_len, crossover_rate)
+
+            offspring += self.mutation(offspring, population_len, mutation_rate)
+
+            parent_pool += offspring
+
+            for rule in parent_pool:
+                self.fitness(rule, X_train, y_train)
+
+
+    def selection(self, parent_pool, population_len):
+        parent_pool = sorted(parent_pool, key=lambda x: x.fitness, reverse=True)
+        parent_pool = parent_pool[:int(population_len/2)]
+        return parent_pool
+
+
+    def crossover(self, parent_pool, population_len, crossover_rate):
+        offspring = []
+        parents_number = population_len//2 if population_len % 2 == 0 else population_len//2 - 1
+        for i in range(parents_number):
+            if np.random.uniform(0, 1) < crossover_rate:
+                first_child = Rule(is_offspring=True)
+                second_child = Rule(is_offspring=True)
+                first_child.if_term = parent_pool[i].if_term[:int(len(parent_pool[i].if_term)/2)] + parent_pool[i+1].if_term[int(len(parent_pool[i+1].if_term)/2):]
+                second_child.if_term = parent_pool[i+1].if_term[:int(len(parent_pool[i+1].if_term)/2)] + parent_pool[i].if_term[int(len(parent_pool[i].if_term)/2):]
+                first_child.class_label, second_child.class_label = parent_pool[i].class_label, parent_pool[i+1].class_label if np.random.uniform(0, 1) < 0.5 else parent_pool[i+1].class_label, parent_pool[i].class_label
+                offspring.append(first_child)
+                offspring.append(second_child) 
+
+        return offspring
+
+
+    def mutation(self, offspring, population_len, mutation_rate):
+        population_len = population_len//2 if population_len % 2 == 0 else population_len//2 - 1
+        for i in range(population_len):
+            if np.random.uniform(0, 1) < mutation_rate:
+                if np.random.uniform(0, 1) < 0.5:
+                    offspring[i].if_term = self.mutation_if_term(offspring[i].if_term)
+                else:
+                    offspring[i].class_label = self.mutation_class_label(offspring[i].class_label)
+
+        return offspring
+
+
+    def fitness(self, rule, X_train, y_train):
+        if rule.fitness is None:
+            fuzzy_functions = Fuzzy_functions()
+
+            f_c = []
+            f_neg = []
+            X_with_same_class_label = [x for x, y in zip(X_train, y_train) if y == rule.class_label]
+            X_with_different_class_label = [x for x, y in zip(X_train, y_train) if y != rule.class_label]
+
+            for row in  X_with_same_class_label:
+                f_c.append(fuzzy_functions.calculate_matching(rule.if_term, row))
+            f_c = sum(f_c)
+            for row in  X_with_different_class_label:
+                f_neg.append(fuzzy_functions.calculate_matching(rule.if_term, row))
+            f_neg = sum(f_neg)/(len(X_with_different_class_label) - 1)
+
+            rule.fitness = (f_c - f_neg)/(f_c + f_neg)
                 
                 
 
@@ -233,7 +284,8 @@ class genetic_algorithm:
 def main():
     data = data_preprocessing()
     X_train, X_test, y_train, y_test = train_test_split(data.records_dim_reduced, data.labels, test_size=0.33)
-    genetic_algorithm(X_train, y_train, 50)
+    genetic_algorithm(X_train, y_train, population_len=50, generation=100, mutation_rate=0.1, crossover_rate=0.9)
+
 
 if __name__ == '__main__':
     main()
