@@ -150,9 +150,8 @@ class Rule:
     
     def generate_if_term(self, maximum_value, minimum_value):
         rule = []
-        if_term_len = np.random.randint(1, 5)
         membership_func_values = ['low', 'fairly low', 'medium', 'fairly high', 'high']
-        for j in range():
+        for j in range(np.random.randint(1, 5)):
             term = []
             s = 0
             # <----(-93)------------------------------------(18)---->
