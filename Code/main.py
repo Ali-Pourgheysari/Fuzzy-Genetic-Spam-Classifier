@@ -149,7 +149,6 @@ class Rule:
     
     def generate_if_term(self, maximum_value, minimum_value):
         rule = []
-        term_func_values = ['low', 'fairly low', 'medium', 'fairly high', 'high']
         x_representive = [0, 1, 2, 3, 4]
         if_term_len = random.randint(1, 5)
         for j in range(if_term_len):
@@ -158,26 +157,14 @@ class Rule:
             # representive of Xi
             term.append(random.choice(x_representive))
             x_representive.remove(term[0])
-            term.append(random.choice(term_func_values)) # term
-            term_func_values.remove(term[1])
+            term.append(random.choice(['low', 'fairly low', 'medium', 'fairly high', 'high'])) # term
             term.append(random.choice(['sigmoid', 'gaussian', 'triangular', 'trapezius'])) # membership function                 
-            term.append(0) # m
+            term.append(random.uniform(minimum_value, maximum_value)) # m
             while s == 0:
                 s = random.uniform(1, abs(maximum_value - minimum_value)) if term[2] == 'triangular' else random.uniform(-1*abs(maximum_value - minimum_value), abs(maximum_value - minimum_value)) # s
             term.append(s)
 
             rule.append(term)
-        
-        # m of each membership function must represents the name of the membership function
-        m = minimum_value
-        i = 0
-        sorted_membership_list = sorted(np.array(rule)[:, 1], key=lambda x: ['low', 'fairly low', 'medium', 'fairly high', 'high'].index(x))
-        for i in range(if_term_len):
-            for term in rule:
-                if sorted_membership_list[i] == term[1]:
-                    m = random.uniform(m, maximum_value)
-                    term[3] = m
-                    break
 
         return rule
 
@@ -280,7 +267,6 @@ class genetic_algorithm:
 
     def mutation_if_term(self, if_term):
         x_representive = [0, 1, 2, 3, 4]
-        term_func_values = ['low', 'fairly low', 'medium', 'fairly high', 'high']
         used_x_representive = []
         used_term_func_values = []
         for term in if_term:
@@ -289,23 +275,20 @@ class genetic_algorithm:
 
         if len(if_term) != 5:
             difference_x_representive = list(set(x_representive) - set(used_x_representive))
-            difference_term_func_values = list(set(term_func_values) - set(used_term_func_values))
             if_term[random.randint(0, len(if_term) - 1)][0] = random.choice(difference_x_representive)
-            if_term[random.randint(0, len(if_term) - 1)][1] = random.choice(difference_term_func_values)
 
+        # swap x representive
         random_number1 = random.randint(0, len(if_term) - 1)
         random_number2 = random.randint(0, len(if_term) - 1)
         if_term[random_number1][0], if_term[random_number2][0] = if_term[random_number2][0], if_term[random_number1][0]
-        random_number1 = random.randint(0, len(if_term) - 1)
-        random_number2 = random.randint(0, len(if_term) - 1)
-        if_term[random_number1][1], if_term[random_number2][1] = if_term[random_number2][1], if_term[random_number1][1]
-
+        
+        if_term[random.randint(0, len(if_term) - 1)][1] = random.choice([['low', 'fairly low', 'medium', 'fairly high', 'high']])
         random_number = random.randint(0, len(if_term) - 1)
         if_term[random_number][2] = random.choice(['sigmoid', 'gaussian', 'triangular', 'trapezius'])
+        if_term[random.randint(0, len(if_term) - 1)][3] = random.uniform(self.minimum_value, self.maximum_value)
         s = 0
         while s == 0:
             s = random.uniform(1, abs(self.maximum_value - self.minimum_value)) if if_term[random_number][2] == 'triangular' else random.uniform(-1*abs(self.maximum_value - self.minimum_value), abs(self.maximum_value - self.minimum_value)) # s
-        if_term[random.randint(0, len(if_term) - 1)][3] = random.uniform(self.minimum_value, self.maximum_value)
         
         return if_term        
 
