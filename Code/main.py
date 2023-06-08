@@ -92,24 +92,21 @@ class data_preprocessing:
 
 class Fuzzy_functions:
 
-    # def test(self, rules, X_train): # 3, 4
-    #     y_hat = []
-    #     g_0 = []
-    #     g_1 = []
-    #     for rule in rules:
-    #         rule_fitness = []
-
-    #         for row in X_train:
-    #             rule_fitness.append(self.calculate_matching(rule.if_term, row))
-
-    #         avg = sum(rule_fitness)/len(rule_fitness)
-    #         if rule.class_label == 0:
-    #             g_0.append(avg)
-    #         else:
-    #             g_1.append(avg)
-                
-    #     y_hat.append(0 if sum(g_0) > sum(g_1) else 1)
-    #     return y_hat
+    def test(self, rules, X_test): # 3, 4
+        y_hat = []
+        rules_with_class_0 = [rule for rule in rules if rule.class_label == 0]
+        rules_with_class_1 = [rule for rule in rules if rule.class_label == 1]
+        
+        for row in X_test:
+            g_0 = 0
+            g_1 = 0
+            for rule in rules_with_class_0:
+                g_0 += (self.calculate_matching(rule.if_term, row))
+            for rule in rules_with_class_1:
+                g_1 += (self.calculate_matching(rule.if_term, row))
+            y_hat.append(0 if g_0 > g_1 else 1)
+        
+        return y_hat
 
     def calculate_matching(self, if_term, row): # 2
         matching = 1
@@ -190,11 +187,12 @@ class Rule:
             return 0
         return 1
 
+
 class genetic_algorithm:
 
     def __init__(self, X_train, y_train, population_len=50, generation=100, mutation_rate=0.1, crossover_rate=0.9, epsilon=1e-7) -> None:
         self.max_min_for_initial_generation(X_train)
-        self.finess_score = self.algorithm(population_len, X_train, y_train, generation, mutation_rate, crossover_rate, epsilon)
+        self.finess_score, self.parent_pool = self.algorithm(population_len, X_train, y_train, generation, mutation_rate, crossover_rate, epsilon)
 
 
     def max_min_for_initial_generation(self, X_train):
@@ -237,7 +235,7 @@ class genetic_algorithm:
 
             parent_pool = self.selection(parent_pool, population_len)
         
-        return fitness_score
+        return fitness_score, parent_pool
 
     def selection(self, parent_pool, population_len):
         parents_with_label_0_len = 5*population_len//6
@@ -337,9 +335,18 @@ def main():
     data = data_preprocessing()
     X_train, X_test, y_train, y_test = train_test_split(data.records_dim_reduced, data.labels, test_size=0.33)
     ga = genetic_algorithm(X_train, y_train, population_len=50, generation=100, mutation_rate=0.1, crossover_rate=0.9, epsilon = 1e-7)
-    fitness_score = ga.finess_score
+    fitness_score, rule_base = ga.finess_score, ga.parent_pool
     plt.plot(fitness_score)
     plt.show()
+
+    ff = Fuzzy_functions()
+    labels = ff.test(rule_base, X_test)
+    counter = 0
+    for cal_y, org_y in zip(labels, y_test):
+        if cal_y == org_y:
+            counter += 1
+    print(f'accuracy is: {counter/len(y_test)}')
+    
 
 if __name__ == '__main__':
     main()
