@@ -170,7 +170,7 @@ class Rule:
 
 
     def generate_class_label(self):
-        if random.uniform(0, 5) <= 4:
+        if random.uniform(0, 6) <= 5:
             return 0
         return 1
 
@@ -268,10 +268,8 @@ class genetic_algorithm:
     def mutation_if_term(self, if_term):
         x_representive = [0, 1, 2, 3, 4]
         used_x_representive = []
-        used_term_func_values = []
         for term in if_term:
             used_x_representive.append(term[0])
-            used_term_func_values.append(term[1])
 
         if len(if_term) != 5:
             difference_x_representive = list(set(x_representive) - set(used_x_representive))
