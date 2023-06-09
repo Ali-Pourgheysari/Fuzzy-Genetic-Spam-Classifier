@@ -170,9 +170,7 @@ class Rule:
 
 
     def generate_class_label(self):
-        if random.uniform(0, 6) <= 5:
-            return 0
-        return 1
+        return random.randint(0, 1)
 
 
 class genetic_algorithm:
@@ -202,42 +200,36 @@ class genetic_algorithm:
 
         last_total_fitness = 0
         for i in range(generation):
+            parent_pool = self.selection(parent_pool, population_len)
+            
             fitness_score.append(np.average([rule.fitness for rule in parent_pool]))
             print(f'generation {i} average fitness: {fitness_score[i]}')
 
             if abs(fitness_score[i] - last_total_fitness) < epsilon:
                 break
             last_total_fitness = fitness_score[i]
-            
-            parent_pool = self.selection(parent_pool, population_len)
 
             offspring = self.crossover(parent_pool, population_len, crossover_rate)
 
-            offspring = self.mutation(offspring, population_len, mutation_rate)
+            offspring = self.mutation(offspring, len(offspring), mutation_rate)
 
             parent_pool += offspring
 
             for rule in parent_pool:
                 rule.fitness = self.fitness(rule, X_train, y_train)
-
-            parent_pool = self.selection(parent_pool, population_len)
         
         return fitness_score, parent_pool
 
+
     def selection(self, parent_pool, population_len):
-        parents_with_label_0_len = 5*population_len//6
-        parents_with_label_1_len = population_len - parents_with_label_0_len
         parent_pool = sorted(parent_pool, key=lambda x: x.fitness, reverse=True)
-        parents_with_label_0 = [rule for rule in parent_pool if rule.class_label == 0]
-        parents_with_label_1 = [rule for rule in parent_pool if rule.class_label == 1]
-        parent_pool = parents_with_label_0[:parents_with_label_0_len] + parents_with_label_1[:parents_with_label_1_len]
+        parent_pool = parent_pool[:population_len//2]
         return parent_pool
 
 
     def crossover(self, parent_pool, population_len, crossover_rate):
         offspring = []
-        parents_number = population_len//2 if population_len % 2 == 0 else population_len//2 - 1
-        for i in range(parents_number - 1):
+        for i in range(population_len//2 - 1):
             if random.uniform(0, 1) < crossover_rate:
                 first_child = Rule(is_offspring=True)
                 second_child = Rule(is_offspring=True)
@@ -254,7 +246,6 @@ class genetic_algorithm:
 
 
     def mutation(self, offspring, population_len, mutation_rate):
-        population_len = population_len//2 if population_len % 2 == 0 else population_len//2 - 1
         for i in range(population_len):
             if random.uniform(0, 1) < mutation_rate:
                 if random.uniform(0, 1) < 0.5:
@@ -267,26 +258,27 @@ class genetic_algorithm:
 
     def mutation_if_term(self, if_term):
         x_representive = [0, 1, 2, 3, 4]
-        used_x_representive = []
-        for term in if_term:
-            used_x_representive.append(term[0])
+        for _ in range(random.randint(1, 3)):
+            used_x_representive = []
+            for term in if_term:
+                used_x_representive.append(term[0])
 
-        if len(if_term) != 5:
-            difference_x_representive = list(set(x_representive) - set(used_x_representive))
-            if_term[random.randint(0, len(if_term) - 1)][0] = random.choice(difference_x_representive)
+            if len(if_term) != 5:
+                difference_x_representive = list(set(x_representive) - set(used_x_representive))
+                if_term[random.randint(0, len(if_term) - 1)][0] = random.choice(difference_x_representive)
 
-        # swap x representive
-        random_number1 = random.randint(0, len(if_term) - 1)
-        random_number2 = random.randint(0, len(if_term) - 1)
-        if_term[random_number1][0], if_term[random_number2][0] = if_term[random_number2][0], if_term[random_number1][0]
-        
-        if_term[random.randint(0, len(if_term) - 1)][1] = random.choice([['low', 'fairly low', 'medium', 'fairly high', 'high']])
-        random_number = random.randint(0, len(if_term) - 1)
-        if_term[random_number][2] = random.choice(['sigmoid', 'gaussian', 'triangular', 'trapezius'])
-        if_term[random.randint(0, len(if_term) - 1)][3] = random.uniform(self.minimum_value, self.maximum_value)
-        s = 0
-        while s == 0:
-            s = random.uniform(1, abs(self.maximum_value - self.minimum_value)) if if_term[random_number][2] == 'triangular' else random.uniform(-1*abs(self.maximum_value - self.minimum_value), abs(self.maximum_value - self.minimum_value)) # s
+            # swap x representive
+            random_number1 = random.randint(0, len(if_term) - 1)
+            random_number2 = random.randint(0, len(if_term) - 1)
+            if_term[random_number1][0], if_term[random_number2][0] = if_term[random_number2][0], if_term[random_number1][0]
+            
+            if_term[random.randint(0, len(if_term) - 1)][1] = random.choice([['low', 'fairly low', 'medium', 'fairly high', 'high']])
+            random_number = random.randint(0, len(if_term) - 1)
+            if_term[random_number][2] = random.choice(['sigmoid', 'gaussian', 'triangular', 'trapezius'])
+            if_term[random.randint(0, len(if_term) - 1)][3] = random.uniform(self.minimum_value, self.maximum_value)
+            s = 0
+            while s == 0:
+                s = random.uniform(1, abs(self.maximum_value - self.minimum_value)) if if_term[random_number][2] == 'triangular' else random.uniform(-1*abs(self.maximum_value - self.minimum_value), abs(self.maximum_value - self.minimum_value)) # s
         
         return if_term        
 
@@ -299,6 +291,12 @@ class genetic_algorithm:
             f_neg = []
             X_with_same_class_label = [x for x, y in zip(X_train, y_train) if y == rule.class_label]
             X_with_different_class_label = [x for x, y in zip(X_train, y_train) if y != rule.class_label]
+            if rule.class_label == 0:
+                random.shuffle(X_with_same_class_label)
+                X_with_same_class_label = X_with_same_class_label[:len(X_with_different_class_label)]
+            else:
+                random.shuffle(X_with_different_class_label)
+                X_with_different_class_label = X_with_different_class_label[:len(X_with_same_class_label)]
 
             for row in X_with_same_class_label:
                 f_c.append(fuzzy_functions.calculate_matching(rule.if_term, row))
@@ -315,7 +313,7 @@ class genetic_algorithm:
 def main():
     data = data_preprocessing()
     X_train, X_test, y_train, y_test = train_test_split(data.records_dim_reduced, data.labels, test_size=0.33)
-    ga = genetic_algorithm(X_train, y_train, population_len=50, generation=100, mutation_rate=0.1, crossover_rate=0.9, epsilon = 1e-7)
+    ga = genetic_algorithm(X_train, y_train, population_len=100, generation=30, mutation_rate=0.1, crossover_rate=0.9, epsilon = 1e-7)
     fitness_score, rule_base = ga.finess_score, ga.parent_pool
     plt.plot(fitness_score)
     plt.show()
