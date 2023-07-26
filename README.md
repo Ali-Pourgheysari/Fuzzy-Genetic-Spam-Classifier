@@ -1,5 +1,8 @@
 # Fuzzy Genetic Algorithm for Text Classification
  This repository contains Python code for a Fuzzy Genetic Algorithm Spam Classifier. The classifier uses a combination of fuzzy logic and genetic algorithm to classify spam and legitimate messages. This Classifier is built using scikit-learn's TfidfVectorizer and PCA for dimensionality reduction.
+ 
+  Read the complete documentation [HERE](Documentation.pdf).
+Also you can read [THIS](Code_review.pdf) code review for more details about the code.
 
  ## Installatioin
   1. Clone the repository to your local machine:
